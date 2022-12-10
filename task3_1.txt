@@ -1,0 +1,70 @@
+• Когда мы перетащили файлы с произведением Льва Толстого – мы перетащили их в файловую систему виртуальной машины, но не в HDFS, соответственно, в первую очередь нам нужно перенести их в папку нашего пользователя именно на HDFS.
+PS D:\DE\Hadoop\docker-hadoop-spark-workbench> docker ps
+CONTAINER ID   IMAGE                                             COMMAND                  CREATED         STATUS                   PORTS                                                      NAMES
+ae45cd0b48b8   bde2020/spark-worker:2.1.0-hadoop2.8-hive-java8   "entrypoint.sh /bin/…"   6 minutes ago   Up 6 minutes (healthy)   0.0.0.0:8081->8081/tcp                                     docker-hadoop-spark-workbench-spark-worker-1
+44714f2e3284   bde2020/hadoop-datanode:1.1.0-hadoop2.8-java8     "/entrypoint.sh /run…"   6 minutes ago   Up 6 minutes (healthy)   0.0.0.0:50075->50075/tcp                                   docker-hadoop-spark-workbench-datanode-1
+48fb017d7577   bde2020/hadoop-namenode:1.1.0-hadoop2.8-java8     "/entrypoint.sh /run…"   7 minutes ago   Up 6 minutes (healthy)   0.0.0.0:50070->50070/tcp                                   namenode
+c4a11d76febf   bde2020/spark-master:2.1.0-hadoop2.8-hive-java8   "entrypoint.sh /bin/…"   7 minutes ago   Up 6 minutes (healthy)   0.0.0.0:7077->7077/tcp, 6066/tcp, 0.0.0.0:8080->8080/tcp   spark-master
+4b280f3335ff   bde2020/spark-notebook:2.1.0-hadoop2.8-hive       "/entrypoint.sh /run…"   7 minutes ago   Up 6 minutes             0.0.0.0:9001->9001/tcp                                     spark-notebook
+fb67f072227c   bde2020/hdfs-filebrowser:3.11                     "/entrypoint.sh buil…"   7 minutes ago   Up 6 minutes             0.0.0.0:8088->8088/tcp                                     docker-hadoop-spark-workbench-hue-1
+
+PS D:\DE\Hadoop\docker-hadoop-spark-workbench> docker cp D:\DE\Hadoop\vim1.txt 44714f2e3284:\
+PS D:\DE\Hadoop\docker-hadoop-spark-workbench> docker cp D:\DE\Hadoop\vim2.txt 44714f2e3284:\
+PS D:\DE\Hadoop\docker-hadoop-spark-workbench> docker cp D:\DE\Hadoop\vim3.txt 44714f2e3284:\
+PS D:\DE\Hadoop\docker-hadoop-spark-workbench> docker cp D:\DE\Hadoop\vim4.txt 44714f2e3284:\
+
+PS D:\DE\Hadoop\docker-hadoop-spark-workbench> docker exec -it 44714f2e3284 bash
+
+root@44714f2e3284:/# ls
+bin   dev            etc     hadoop-data  lib    media  opt   root  run.sh  srv  tmp  var       vim2.txt  vim4.txt
+boot  entrypoint.sh  hadoop  home         lib64  mnt    proc  run   sbin    sys  usr  vim1.txt  vim3.txt
+
+root@44714f2e3284:/# hdfs dfs -copyFromLocal vim1.txt /user/cloudera/
+root@44714f2e3284:/# hdfs dfs -copyFromLocal vim2.txt /user/cloudera/
+root@44714f2e3284:/# hdfs dfs -copyFromLocal vim3.txt /user/cloudera/
+root@44714f2e3284:/# hdfs dfs -copyFromLocal vim4.txt /user/cloudera/
+
+• После того, как файлы окажутся на HDFS попробуйте выполнить команду, которая выводит содержимое папки. Особенно обратите внимание на права доступа к вашим файлам.
+root@44714f2e3284:/# hdfs dfs -ls /user/cloudera
+Found 4 items
+-rw-r--r--   3 root cloudera     736519 2022-12-10 17:43 /user/cloudera/vim1.txt
+-rw-r--r--   3 root cloudera     770324 2022-12-10 17:44 /user/cloudera/vim2.txt
+-rw-r--r--   3 root cloudera     843205 2022-12-10 17:44 /user/cloudera/vim3.txt
+-rw-r--r--   3 root cloudera     697960 2022-12-10 17:45 /user/cloudera/vim4.txt
+
+• Далее сожмите все 4 тома в 1 файл.
+root@44714f2e3284:/# hdfs dfs -getmerge /user/cloudera/ /user/cloudera/all-in-one-vim.txt
+root@44714f2e3284:/# hdfs dfs -copyFromLocal /user/cloudera/all-in-one-vim.txt /user/cloudera
+root@44714f2e3284:/# hdfs dfs -ls /user/cloudera
+Found 5 items
+-rw-r--r--   3 root cloudera    3048008 2022-12-10 18:29 /user/cloudera/all-in-one-vim.txt
+-rw-r--r--   3 root cloudera     736519 2022-12-10 17:43 /user/cloudera/vim1.txt
+-rw-r--r--   3 root cloudera     770324 2022-12-10 17:44 /user/cloudera/vim2.txt
+-rw-r--r--   3 root cloudera     843205 2022-12-10 17:44 /user/cloudera/vim3.txt
+-rw-r--r--   3 root cloudera     697960 2022-12-10 17:45 /user/cloudera/vim4.txt
+
+• Теперь давайте изменим права доступа к нашему файлу. Чтобы с нашим файлом могли взаимодействовать коллеги, установите режим доступа, который дает полный доступ для владельца файла, а для сторонних пользователей возможность читать и выполнять.
+root@44714f2e3284:/# hdfs dfs -chmod 764 /user/cloudera/vim1.txt /user/cloudera/vim2.txt /user/cloudera/vim3.txt /user/cloudera/vim4.txt /user/cloudera/all-in-one-vim.
+txt
+root@44714f2e3284:/# hdfs dfs -ls /user/cloudera
+Found 5 items
+-rwxrw-r--   3 root cloudera    3048008 2022-12-10 18:29 /user/cloudera/all-in-one-vim.txt
+-rwxrw-r--   3 root cloudera     736519 2022-12-10 17:43 /user/cloudera/vim1.txt
+-rwxrw-r--   3 root cloudera     770324 2022-12-10 17:44 /user/cloudera/vim2.txt
+-rwxrw-r--   3 root cloudera     843205 2022-12-10 17:44 /user/cloudera/vim3.txt
+-rwxrw-r--   3 root cloudera     697960 2022-12-10 17:45 /user/cloudera/vim4.txt
+
+• Теперь попробуем вывести на экран информацию о том, сколько места на диске занимает наш файл. Желательно, чтобы размер файла был удобночитаемым.
+root@44714f2e3284:/# hdfs dfs -du -h /user/cloudera
+2.9 M    /user/cloudera/all-in-one-vim.txt
+719.3 K  /user/cloudera/vim1.txt
+752.3 K  /user/cloudera/vim2.txt
+823.4 K  /user/cloudera/vim3.txt
+681.6 K  /user/cloudera/vim4.txt
+
+•  Напишите команду, которая изменит фактор репликации на 2.
+root@44714f2e3284:/# hdfs dfs -setrep -w 2 /user/cloudera/all-in-one-vim.txt
+
+• Напишите команду, которая подсчитывает количество строк в вашем файле
+root@44714f2e3284:/# hdfs dfs -cat /user/cloudera/all-in-one-vim.txt | wc -l
+10272
