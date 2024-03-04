@@ -2,10 +2,10 @@ import sys
 import pygame
 import random, math
 
-W = 600
-H = 600
+W = 1000
+H = 1000
 
-dt = 0.00001
+dt = 0.0005
 
 class Point:
     def __init__(self,x,y,vx,vy,r,c):
@@ -20,11 +20,7 @@ class Point:
     
     def move(self):
         x,y = self.xy
-        if (x>W-self.r) or (x<self.r):
-            self.vx = -self.vx
-        if (y>H-self.r) or (y<self.r):
-            self.vy = -self.vy
-        self.xy = (x+self.vx,y+self.vy)
+        self.xy = (x+self.vx*dt,y+self.vy*dt)
 
     def temp_color(self, min_v, max_v):
         
@@ -39,19 +35,37 @@ class Point:
         x1,y1 = self.xy
         r1 = self.r
         r = ((x1-x2)**2 + (y1-y2)**2)**(1/2)
+        ax = 0
+        ay = 0
         if r < (r1+r2):
-            ax = 1000000*(x1-x2)/r**3
-            ay = 1000000*(y1-y2)/r**3
+            ax += 1000000*(x1-x2)/r**3
+            ay += 1000000*(y1-y2)/r**3
 
             #print(ax, ax*dt, ay, ay*dt)
 
-            self.vx += ax*dt
-            self.vy += ay*dt
+        if (x1>W-self.r):
+            ax += -100000/(W - x1)**2
+        if (x1<self.r):
+            ax += 100000/x1**2
+        if (y1>H-self.r):
+            ay += -100000/(H - y1)**2
+            if x1 < 10:
+                ay *= 1.1
+            else: ay *= 0.2
+        if (y1<self.r):
+            ay += 100000/y1**2
+
+        ay += 10
+
+
+
+        self.vx += ax*dt
+        self.vy += ay*dt    
             
         
 
 pygame.init()
-clock = pygame.time.Clock()
+#clock = pygame.time.Clock()
 
 window = pygame.display.set_mode((W, H))
 
@@ -64,16 +78,17 @@ for i in range(200):
     p = Point(W/2+dx*W/2,H/2+dy*H/2, 0, 0, 10, (255,0,0))
     ps.append(p)
 """
-k = 10
-for i in range(100):
+k = 2
+for i in range(4):
     v,u = (random.random(),random.random())
-    dx = v * math.cos(-u*2*3.14)
-    dy = v * math.sin(-u*2*3.14)
+    dx = 10*v * math.cos(-u*2*3.14)
+    dy = 10*v * math.sin(-u*2*3.14)
     p = Point(W/(2*k)+i%k*W/k,H/(2*k)+i//k*H/k, dx, dy, 10, (255,0,0))
-    print(i%k*W/k, i//k*H/k)
+    #print(i%k*W/k, i//k*H/k)
     ps.append(p)
-
+t = 0
 while True:
+
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             pygame.quit()
@@ -107,10 +122,15 @@ while True:
         if min_v > v:
             min_v = v
             
-    for p in ps:
-        p.draw()       
+    for p in ps:    
         p.move()
-        p.temp_color(min_v, max_v)
+        
 
-    pygame.display.flip()
-    clock.tick(60)
+    t += 1
+    if t >= 1/(dt*60):
+        t = 0
+        for p in ps:
+            p.temp_color(min_v, max_v)
+            p.draw() 
+            
+        pygame.display.flip()
